@@ -1,0 +1,75 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Replica",
+            "request": "launch",
+            "mainClass": "models.Replica",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Client",
+            "request": "launch",
+            "mainClass": "models.Client",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "name": "Replica 1",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "models.Replica",
+            "args": [
+                "9001"
+            ],
+            "console": "integratedTerminal",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "name": "Replica 2",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "models.Replica",
+            "args": [
+                "9002"
+            ],
+            "console": "integratedTerminal",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "name": "Replica 3",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "models.Replica",
+            "args": [
+                "9003"
+            ],
+            "console": "integratedTerminal",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "type": "java",
+            "name": "Sequencer",
+            "request": "launch",
+            "mainClass": "models.Sequencer",
+            "projectName": "your-artifact-id"
+        },
+        {
+            "type": "java",
+            "name": "Client 2",
+            "request": "launch",
+            "mainClass": ".models.Client",
+            "projectName": "your-artifact-id"
+        }
+    ]
+}
