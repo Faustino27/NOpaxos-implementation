@@ -1,6 +1,6 @@
 package models;
 import java.util.Random;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.Bootstrap;
@@ -8,14 +8,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import java.util.concurrent.TimeUnit;
 
 
 public class Client {
 
     private final String host;
     private final int port;
-    private final String clientId;
+    private final short clientId;
     private static final Logger logger = Logger.getLogger(Client.class.getName());
     private Bootstrap bootstrap;
     private Channel channel;
@@ -26,7 +25,7 @@ public class Client {
     public Client(String host, int port) {
         this.host = host;
         this.port = port;
-        this.clientId = UUID.randomUUID().toString();
+        this.clientId =  (short) new Random().nextInt(Short.MAX_VALUE + 1);
     }
 
     public void start() {
@@ -41,14 +40,14 @@ public class Client {
             channel = bootstrap.connect(host, port).sync().channel();
             // Send messages or perform other client operations here
             Header header = new Header(clientId);
+            header.setMensageType(false);
             logger.info("Header's senderId: " + header.getSenderId());
             Packet myPacket = new Packet(header, "Hello world!");
             while (true) {
                 // Send messages or perform other client operations here
                 sendRequest(myPacket);
-    
                 // Sleep for a random duration between 2 to 5 seconds
-                TimeUnit.SECONDS.sleep(10 + rand.nextInt(4));
+                TimeUnit.SECONDS.sleep(10 + rand.nextInt(10));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -71,7 +70,6 @@ public class Client {
     public static void main(String[] args) {
         Client client = new Client("localhost", 8080);
         client.start();
-
         client.stop();
     }
 

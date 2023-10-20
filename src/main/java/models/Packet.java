@@ -1,11 +1,13 @@
 package models;
 
-public class Packet {
+import java.io.Serializable;
+
+public class Packet implements Serializable{
 
     private Header header; // The header of the packet
     private String data; // The data contained in the packet
 
-    public Packet() {
+    public Packet(){
     }
 
     public Packet(Header header, String data) {
@@ -27,6 +29,10 @@ public class Packet {
 
     public void setHeader(Header header) {
         this.header = header;
+    }
+
+    public short getSenderId() {
+        return this.header.getSenderId();
     }
 
     @Override

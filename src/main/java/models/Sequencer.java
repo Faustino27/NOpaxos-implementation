@@ -16,15 +16,16 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Sequencer {
 
-    private Map<String, Integer> groupCounters; // A map to maintain counters for different OUM groups
+    private Map<Short, Integer> senderCounters; // A map to maintain counters for different senders
     private Map<String, Integer> sessionNumbers; // A map to maintain OUM session numbers for different groups
     private Map<String, Channel> replicaChannels = new HashMap<>(); // Maintains connections to replicas
+    private Map<Short, Channel> clientChannels = new HashMap<>(); // keeps track of client connections
+
     private Properties properties;
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
 
-
     public Sequencer() {
-        this.groupCounters = new HashMap<>(); // Initialize the group counters map
+        this.senderCounters = new HashMap<>(); // Initialize the group counters map
         this.sessionNumbers = new HashMap<>(); // Initialize the OUM session numbers map
         properties = new Properties();
         try {
@@ -38,36 +39,37 @@ public class Sequencer {
     // Method to process a packet (assign a sequence number and update the session
     // number)
     public void processPacket(Packet packet) {
-        if (packet == null) {
-            logger.warning("Received packet is null.");
-            return;
-        }
-        if (packet.getHeader() == null) {
-            logger.warning("Received packet's header is null.");
-            return;
-        }
-        
+        // if (packet == null) {
+        // logger.warning("Received packet is null.");
+        // return;
+        // }
+        // if (packet.getHeader() == null) {
+        // logger.warning("Received packet's header is null.");
+        // return;
+        // }
+
         Header header = packet.getHeader(); // Get the header from the packet
-        String groupId = header.getGroupId(); // Get the group ID from the header
+        short senderId = header.getSenderId(); // Get the group ID from the header
+        if (!header.getMensageType()) {
+            // Get and update the counter for the group
+            int senderCounter = this.senderCounters.getOrDefault(senderId, 0);
+            this.senderCounters.put(senderId, senderCounter + 1);
 
-        // Get and update the counter for the group
-        int groupCounter = this.groupCounters.getOrDefault(groupId, 0);
-        this.groupCounters.put(groupId, groupCounter + 1);
+            // Get the session number for the group
+            int sessionNumber = this.sessionNumbers.getOrDefault(senderId, 0);
 
-        // Get the session number for the group
-        int sessionNumber = this.sessionNumbers.getOrDefault(groupId, 0);
+            // Set the counter and session number in the packet's header
+            header.setSequenceNumber(senderCounter);
+            header.setSessionNumber(sessionNumber);
 
-        // Set the counter and session number in the packet's header
-        header.setSequenceNumber(groupCounter);
-        header.setSessionNumber(sessionNumber);
-
-        // Log the processing of the packet
-        logger.info(String.format("Processed packet from client %s with sequence number %d and session number %d",
-                header.getSenderId(), groupCounter, sessionNumber));
-        forwardPacketToReplicas(packet);
+            // Log the processing of the packet
+            logger.info(String.format("Processed packet from client %s with sequence number %d and session number %d",
+                    header.getSenderId(), senderCounter, sessionNumber));
+            forwardPacketToReplicas(packet);
+        }
     }
 
-    // Method to handle sequencer failures (as described in section 4.3)
+    // Method to handle sequencer failures
     public void handleSequencerFailure(String groupId) {
 
     }
@@ -78,11 +80,11 @@ public class Sequencer {
         try {
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(bossGroup, workerGroup)
-                     .channel(NioServerSocketChannel.class)
-                     .childHandler(new SequencerServerInitializer(this));
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new SequencerServerInitializer(this));
 
             connectToReplicas();
-            
+
             logger.info("Starting sequencer server on port " + port);
             bootstrap.bind(port).sync().channel().closeFuture().sync();
 
@@ -111,28 +113,34 @@ public class Sequencer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(new NioEventLoopGroup())
                 .channel(NioSocketChannel.class)
-                .handler(new SequencerReplicaInitializer()); // This will handle communication with replicas
+                .handler(new SequencerReplicaInitializer(this)); // This will handle communication with replicas
 
-        for (int i = 1; i <= 3; i++) {
+        for (int i = 1; i <= 1; i++) {
             String ip = properties.getProperty("replica" + i + ".ip");
             int port = Integer.parseInt(properties.getProperty("replica" + i + ".port"));
-            
+
             try {
                 Channel channel = bootstrap.connect(ip, port).sync().channel();
                 replicaChannels.put("replica" + i, channel);
                 logger.info("Connected to replica" + i + " at " + ip + ":" + port);
             } catch (InterruptedException e) {
                 logger.severe("Error while connecting to replica" + i + ": " + e.getMessage());
-                e.printStackTrace();  // or log it using a logger
+                e.printStackTrace(); // or log it using a logger
             }
         }
     }
-
 
     public static void main(String[] args) {
         int port = 8080; // Choose your desired port
         Sequencer sequencer = new Sequencer();
         sequencer.startServer(port);
     }
+    
+    public Map<Short, Channel> getClientChannels() {
+        return clientChannels;
+    }
 
+    public void setClientChannels(Map<Short, Channel> clientChannels) {
+        this.clientChannels = clientChannels;
+    }
 }

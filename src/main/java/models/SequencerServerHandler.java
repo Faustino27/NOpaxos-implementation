@@ -12,7 +12,6 @@ public class SequencerServerHandler extends ChannelInboundHandlerAdapter {
 
 
     public SequencerServerHandler(Sequencer sequencer) {
-        
         this.sequencer = sequencer;
     }
 
@@ -29,10 +28,18 @@ public class SequencerServerHandler extends ChannelInboundHandlerAdapter {
                 logger.info("Received a null packet or packet with a null header.");
                 return;
             }
-
-            sequencer.processPacket(receivedPacket);
+            Header header = receivedPacket.getHeader();
+            if(!header.getMensageType()){
+                sequencer.getClientChannels().putIfAbsent(header.getSenderId(), ctx.channel());
+                sequencer.processPacket(receivedPacket);
+            }
+            else if(header.getMensageType()){
+                logger.info("Seding reponse from replica back to client " + header.getSenderId());
+                sequencer.getClientChannels().get(header.getSenderId()).writeAndFlush(receivedPacket);
+            }
         }
     }
+
     
 
     @Override
@@ -40,5 +47,6 @@ public class SequencerServerHandler extends ChannelInboundHandlerAdapter {
         cause.printStackTrace();
         ctx.close();
     }
+
 }
 

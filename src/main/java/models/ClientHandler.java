@@ -7,7 +7,7 @@ public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Packet packet) throws Exception {
-        // Handle the packet received from the sequencer, if needed
+        System.out.println("Received response: " + packet.getData());
     }
 
     @Override
