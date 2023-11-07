@@ -4,25 +4,13 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "type": "java",
-            "name": "Replica",
-            "request": "launch",
-            "mainClass": "models.Replica",
-            "projectName": "your-artifact-id"
-        },
-        {
-            "type": "java",
-            "name": "Current File",
-            "request": "launch",
-            "mainClass": "${file}"
-        },
+        
         {
             "type": "java",
             "name": "Client",
             "request": "launch",
             "mainClass": "models.Client",
-            "projectName": "your-artifact-id"
+            "projectName": "paxos-implementation"
         },
         {
             "name": "Replica 1",
@@ -33,7 +21,7 @@
                 "9001"
             ],
             "console": "integratedTerminal",
-            "projectName": "your-artifact-id"
+            "projectName": "paxos-implementation"
         },
         {
             "name": "Replica 2",
@@ -44,7 +32,7 @@
                 "9002"
             ],
             "console": "integratedTerminal",
-            "projectName": "your-artifact-id"
+            "projectName": "paxos-implementation"
         },
         {
             "name": "Replica 3",
@@ -55,21 +43,14 @@
                 "9003"
             ],
             "console": "integratedTerminal",
-            "projectName": "your-artifact-id"
+            "projectName": "paxos-implementation"
         },
         {
             "type": "java",
             "name": "Sequencer",
             "request": "launch",
             "mainClass": "models.Sequencer",
-            "projectName": "your-artifact-id"
-        },
-        {
-            "type": "java",
-            "name": "Client 2",
-            "request": "launch",
-            "mainClass": ".models.Client",
-            "projectName": "your-artifact-id"
+            "projectName": "paxos-implementation"
         }
     ]
 }

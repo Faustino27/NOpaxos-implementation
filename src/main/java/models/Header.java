@@ -2,23 +2,24 @@ package models;
 
 import java.io.Serializable;
 
-public class Header implements Serializable{
+public class Header implements Serializable {
     private int sequenceNumber; // The sequence number assigned by the sequencer
-    private int sessionNumber; // The OUM session number assigned by the sequencer
     private String groupId; // The ID of the group to which the packet belongs
     private short senderId;
-    private boolean mensageType; // false = request, true = reply
+    private boolean firstMessage;
 
     // Constructor, getters, and setters for the Header class
     public Header(short senderId) {
         this.senderId = senderId;
+        this.firstMessage = false;
     }
 
-    public Header(short senderId, int sequenceNumber, int sessionNumber, boolean mensageType) {
+    public Header(short senderId, int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
-        this.sessionNumber = sessionNumber;
+        // this.senderAdress = senderAdress;
         this.senderId = senderId;
-        this.mensageType = mensageType;
+        this.firstMessage = false;
+
     }
 
     public int getSequenceNumber() {
@@ -27,14 +28,6 @@ public class Header implements Serializable{
 
     public void setSequenceNumber(int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
-    }
-
-    public int getSessionNumber() {
-        return sessionNumber;
-    }
-
-    public void setSessionNumber(int sessionNumber) {
-        this.sessionNumber = sessionNumber;
     }
 
     public String getGroupId() {
@@ -49,12 +42,12 @@ public class Header implements Serializable{
         this.senderId = senderId;
     }
 
-    public boolean getMensageType() {
-        return mensageType;
+    public void setFirstMessage(boolean firstMessage) {
+        this.firstMessage = firstMessage;
     }
 
-    public void setMensageType(boolean mensageType) {
-        this.mensageType = mensageType;
+    public boolean isFirstMessage() {
+        return this.firstMessage;
     }
 
     @Override

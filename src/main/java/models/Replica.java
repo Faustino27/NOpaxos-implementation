@@ -1,8 +1,10 @@
 package models;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -11,6 +13,20 @@ public class Replica{
 
     private final int port;
     private static final Logger logger = Logger.getLogger(Replica.class.getName());
+
+    private static final ConcurrentHashMap<Short, ChannelHandlerContext> clientConnections = new ConcurrentHashMap<>();
+
+    public void addClientConnection(Short clientId, ChannelHandlerContext ctx) {
+        clientConnections.put(clientId, ctx);
+    }
+
+    public ChannelHandlerContext getClientConnection(Short clientId) {
+        return clientConnections.get(clientId);
+    }
+
+    public void removeClientConnection(Short clientId) {
+        clientConnections.remove(clientId);
+    }
 
 
     public Replica(int port) {
@@ -25,7 +41,7 @@ public class Replica{
             ServerBootstrap bootstrap = new ServerBootstrap();
             bootstrap.group(bossGroup, workerGroup)
                      .channel(NioServerSocketChannel.class)
-                     .childHandler(new ReplicaServerInitializer());
+                     .childHandler(new ReplicaServerInitializer(this));
 
             bootstrap.bind(port).sync().channel().closeFuture().sync();
         } catch (Exception e) {

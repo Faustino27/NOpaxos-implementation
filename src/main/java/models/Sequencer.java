@@ -17,16 +17,17 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 public class Sequencer {
 
     private Map<Short, Integer> senderCounters; // A map to maintain counters for different senders
-    private Map<String, Integer> sessionNumbers; // A map to maintain OUM session numbers for different groups
+    // private Map<String, Integer> sessionNumbers; // A map to maintain OUM session
+    // numbers for different groups
     private Map<String, Channel> replicaChannels = new HashMap<>(); // Maintains connections to replicas
-    private Map<Short, Channel> clientChannels = new HashMap<>(); // keeps track of client connections
 
     private Properties properties;
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
 
     public Sequencer() {
         this.senderCounters = new HashMap<>(); // Initialize the group counters map
-        this.sessionNumbers = new HashMap<>(); // Initialize the OUM session numbers map
+        // this.sessionNumbers = new HashMap<>(); // Initialize the OUM session numbers
+        // map
         properties = new Properties();
         try {
             FileInputStream fis = new FileInputStream("config.properties");
@@ -39,34 +40,34 @@ public class Sequencer {
     // Method to process a packet (assign a sequence number and update the session
     // number)
     public void processPacket(Packet packet) {
-        // if (packet == null) {
-        // logger.warning("Received packet is null.");
-        // return;
-        // }
-        // if (packet.getHeader() == null) {
-        // logger.warning("Received packet's header is null.");
-        // return;
-        // }
+        if (packet == null) {
+            logger.warning("Received packet is null.");
+            return;
+        }
+        if (packet.getHeader() == null) {
+            logger.warning("Received packet's header is null.");
+            return;
+        }
 
         Header header = packet.getHeader(); // Get the header from the packet
         short senderId = header.getSenderId(); // Get the group ID from the header
-        if (!header.getMensageType()) {
-            // Get and update the counter for the group
-            int senderCounter = this.senderCounters.getOrDefault(senderId, 0);
-            this.senderCounters.put(senderId, senderCounter + 1);
 
-            // Get the session number for the group
-            int sessionNumber = this.sessionNumbers.getOrDefault(senderId, 0);
+        // Get and update the counter for the group
+        int senderCounter = this.senderCounters.getOrDefault(senderId, 0);
+        this.senderCounters.put(senderId, senderCounter + 1);
 
-            // Set the counter and session number in the packet's header
-            header.setSequenceNumber(senderCounter);
-            header.setSessionNumber(sessionNumber);
+        // Get the session number for the group
+        // int sessionNumber = this.sessionNumbers.getOrDefault(senderId, 0);
 
-            // Log the processing of the packet
-            logger.info(String.format("Processed packet from client %s with sequence number %d and session number %d",
-                    header.getSenderId(), senderCounter, sessionNumber));
-            forwardPacketToReplicas(packet);
-        }
+        // Set the counter and session number in the packet's header
+        header.setSequenceNumber(senderCounter);
+        // header.setSessionNumber(sessionNumber);
+
+        // Log the processing of the packet
+        logger.info(String.format("Processed packet from client %s with sequence number %d",
+                header.getSenderId(), senderCounter));
+        logger.info("Packet data: " + packet.getData());
+        forwardPacketToReplicas(packet);
     }
 
     // Method to handle sequencer failures
@@ -113,9 +114,9 @@ public class Sequencer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(new NioEventLoopGroup())
                 .channel(NioSocketChannel.class)
-                .handler(new SequencerReplicaInitializer(this)); // This will handle communication with replicas
+                .handler(new SequencerReplicaInitializer()); // This will handle communication with replicas
 
-        for (int i = 1; i <= 1; i++) {
+        for (int i = 1; i <= 3; i++) {
             String ip = properties.getProperty("replica" + i + ".ip");
             int port = Integer.parseInt(properties.getProperty("replica" + i + ".port"));
 
@@ -135,12 +136,5 @@ public class Sequencer {
         Sequencer sequencer = new Sequencer();
         sequencer.startServer(port);
     }
-    
-    public Map<Short, Channel> getClientChannels() {
-        return clientChannels;
-    }
 
-    public void setClientChannels(Map<Short, Channel> clientChannels) {
-        this.clientChannels = clientChannels;
-    }
 }
