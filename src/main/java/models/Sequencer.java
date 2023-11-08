@@ -54,14 +54,13 @@ public class Sequencer {
 
         // Get and update the counter for the group
         int senderCounter = this.senderCounters.getOrDefault(senderId, 0);
+        // if(senderCounter == 3){
+        //     this.senderCounters.put(senderId, 6);
+        // }else{
+        // }
+        
         this.senderCounters.put(senderId, senderCounter + 1);
-
-        // Get the session number for the group
-        // int sessionNumber = this.sessionNumbers.getOrDefault(senderId, 0);
-
-        // Set the counter and session number in the packet's header
         header.setSequenceNumber(senderCounter);
-        // header.setSessionNumber(sessionNumber);
 
         // Log the processing of the packet
         logger.info(String.format("Processed packet from client %s with sequence number %d",

@@ -1,5 +1,8 @@
 package models;
 
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -15,6 +18,13 @@ public class Replica{
     private static final Logger logger = Logger.getLogger(Replica.class.getName());
 
     private static final ConcurrentHashMap<Short, ChannelHandlerContext> clientConnections = new ConcurrentHashMap<>();
+    private final Map<Short, Long> lastSequenceNumber = new HashMap<>();
+    private final Map<Short, LinkedHashSet<Packet>> recentPackets = new HashMap<>();
+    private final int maxRecentPackets = 100;
+
+    public Replica(int port) {
+        this.port = port;
+    }
 
     public void addClientConnection(Short clientId, ChannelHandlerContext ctx) {
         clientConnections.put(clientId, ctx);
@@ -28,10 +38,24 @@ public class Replica{
         clientConnections.remove(clientId);
     }
 
-
-    public Replica(int port) {
-        this.port = port;
+    public synchronized void updateSequenceNumber(Short clientKey, long sequenceNumber) {
+        lastSequenceNumber.put(clientKey, sequenceNumber);
     }
+
+    public synchronized Long getLastSequenceNumber(Short clientKey) {
+        return lastSequenceNumber.getOrDefault(clientKey, 0L);
+    }
+
+    public synchronized void addRecentPacket(Short clientKey, Packet packet) {
+        LinkedHashSet<Packet> packets = recentPackets.computeIfAbsent(clientKey, k -> new LinkedHashSet<>());
+        if (packets.size() >= maxRecentPackets) {
+            // Remove the oldest packet if we exceed the max number of recent packets
+            Packet oldestPacket = packets.iterator().next();
+            packets.remove(oldestPacket);
+        }
+        packets.add(packet);
+    }
+
 
     public void start() {
         EventLoopGroup bossGroup = new NioEventLoopGroup();

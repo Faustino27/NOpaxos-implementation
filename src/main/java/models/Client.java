@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.Bootstrap;
@@ -25,6 +25,12 @@ public class Client {
     private Map<String, Channel> replicaChannels = new HashMap<>();
     private Properties properties;
 
+    private final AtomicBoolean shouldSendNewRequest = new AtomicBoolean(true);
+
+    public boolean getAndSetShouldSendNewRequest(boolean newValue) {
+        return shouldSendNewRequest.getAndSet(newValue);
+    }
+
     private EventLoopGroup group; // Moved to class level to shut it down gracefully
     Random rand = new Random();
 
@@ -41,7 +47,9 @@ public class Client {
             e.printStackTrace();
         }
     }
-
+    public short getClientId() {
+        return this.clientId;
+    }
     public void start() {
         group = new NioEventLoopGroup();
 
@@ -49,7 +57,7 @@ public class Client {
             bootstrap = new Bootstrap();
             bootstrap.group(group)
                     .channel(NioSocketChannel.class)
-                    .handler(new ClientInitializer()); // Define your client's channel pipeline here
+                    .handler(new ClientInitializer(this)); // Define your client's channel pipeline here
 
             sequencerChannel = bootstrap.connect(hostSequencer, portSequencer).sync().channel();
             // Send messages or perform other client operations here
@@ -60,17 +68,18 @@ public class Client {
 
             Packet myPacket = new Packet(header, "Hello world!");
 
-            while (true) {
+            //while (true) {
                 // Send messages or perform other client operations here
                 sendRequestSequencer(myPacket);
                 // Sleep for a random duration between 2 to 5 seconds
-                TimeUnit.SECONDS.sleep(100020 + rand.nextInt(10));
-            }
+                //TimeUnit.SECONDS.sleep(5 + rand.nextInt(10));
+            //}
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            group.shutdownGracefully();
-        }
+        } 
+        // finally {
+        //     group.shutdownGracefully();
+        // }
     }
 
     public void stop() {
@@ -86,7 +95,7 @@ public class Client {
 
     public void sendRequestSequencer(Packet packet) {
         Random rand = new Random();
-        String message = "Hello replica " + rand.nextInt(1000); // Random number between 0 and 999
+        String message = "\nHello replica this is a random integer" + rand.nextInt(1000); // Random number between 0 and 999
         packet.setData(message);
         if (sequencerChannel != null && sequencerChannel.isActive()) {
             logger.info("Client " + clientId + " is sending the request: " + packet.toString());
@@ -117,7 +126,7 @@ public class Client {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group)
                 .channel(NioSocketChannel.class)
-                .handler(new ClientInitializer()); // Use an initializer appropriate for client-replica communication
+                .handler(new ClientInitializer(this)); // Use an initializer appropriate for client-replica communication
 
         // Assuming you have the IP and port for each replica in a properties file or some configuration
         for (int i = 1; i <= 3; i++) { // Adjust the loop to match the number of replicas
@@ -138,7 +147,7 @@ public class Client {
     public static void main(String[] args) {
         Client client = new Client("localhost", 8080);
         client.start();
-        client.stop();
+        //client.stop();
     }
 
 }

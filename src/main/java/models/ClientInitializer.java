@@ -7,8 +7,9 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
 public class ClientInitializer extends ChannelInitializer<SocketChannel> {
-
-    public ClientInitializer() {
+    Client client;
+    public ClientInitializer(Client client) {
+        this.client = client;
     }
 
     @Override
@@ -16,7 +17,7 @@ public class ClientInitializer extends ChannelInitializer<SocketChannel> {
         // Here, you can add encoders, decoders, and handlers to the pipeline;
         ch.pipeline().addLast(new ObjectEncoder());
         ch.pipeline().addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
-        ch.pipeline().addLast(new ClientHandler());
+        ch.pipeline().addLast(new ClientHandler(this.client));
     }
 }
  

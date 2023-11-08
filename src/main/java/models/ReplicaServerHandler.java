@@ -25,23 +25,47 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<Packet> {
             logger.info("senderId: " + packet.getSenderId());
             replica.addClientConnection(packet.getHeader().getSenderId(), ctx);
         }else{
-            treatMessage(ctx, packet);
+            validateSequence(packet);
+            processPacket(ctx, packet);
         }
 
 
     }
 
-    private void treatMessage(ChannelHandlerContext ctx, Packet packet){
+    private void validateSequence(Packet packet){
+        Short clientKey = packet.getSenderId();
+        long receivedSeqNum = packet.getHeader().getSequenceNumber();
+
+        long lastSeqNum = replica.getLastSequenceNumber(clientKey);
+
+        if (receivedSeqNum == lastSeqNum + 1) {
+            // Update the last sequence number in the Replica
+            replica.updateSequenceNumber(clientKey, receivedSeqNum);
+            // Add this packet to the recent packets list in the Replica
+            replica.addRecentPacket(clientKey, packet);
+        } else if (receivedSeqNum <= lastSeqNum) {
+            // Packet is a duplicate or out of order
+            logger.warning("Received out of order or duplicate packet. Expected: " + (lastSeqNum + 1) + ", but received: " + receivedSeqNum);
+            // Handle the out-of-order or duplicate packet appropriately
+        } else {
+            // There is a gap in the sequence
+            logger.warning("Gap in the packet sequence. Expected: " + (lastSeqNum + 1) + ", but received: " + receivedSeqNum);
+            // Handle the missing packet(s)
+            // For example, you might notify other replicas to request the missing packet(s)
+        }
+
+
+    }
+
+    private void processPacket(ChannelHandlerContext ctx, Packet packet){
         Short clientKey = packet.getSenderId();
 
         Header header = new Header(packet.getSenderId());
         Packet responsePacket = new Packet(header,
-                "Response to client " + packet.getSenderId() + ": replica received your message.");
+                "Response to client " + packet.getSenderId() + ": this replica received your message.");
         logger.info("Preparing to send response to client: " + packet.getHeader().getSenderId());
 
         ChannelHandlerContext clientCtx = replica.getClientConnection(clientKey);
-        logger.info("all connections saved");
-
         // Check if the context exists and is active
         if (clientCtx != null && clientCtx.channel().isActive()) {
             // Write and flush the response packet to the client using the existing context
@@ -55,7 +79,6 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<Packet> {
             });
         } else {
             logger.warning("No active context found for client: " + packet.getSenderId());
-            logger.info("Client connections: " + replica.getClientConnection(clientKey));
             // Handle the case where the context doesn't exist or isn't active
         }
     }
