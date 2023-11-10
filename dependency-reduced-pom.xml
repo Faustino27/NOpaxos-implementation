@@ -45,20 +45,6 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.0.0</version>
       </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.6.0</version>
-        <configuration>
-          <mainClass>com.yourpackage.MainClass</mainClass>
-          <systemProperties>
-            <systemProperty>
-              <key>java.util.logging.config.file</key>
-              <value>${project.basedir}/src/main/resources/logging.properties</value>
-            </systemProperty>
-          </systemProperties>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 </project>

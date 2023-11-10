@@ -1,38 +1,42 @@
 package models;
 
+import java.net.InetSocketAddress;
 import java.util.logging.Logger;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
-
 public class ReplicaServerHandler extends SimpleChannelInboundHandler<Packet> {
-    
+
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
     Replica replica;
 
-    ReplicaServerHandler(Replica replica){
+    ReplicaServerHandler(Replica replica) {
         this.replica = replica;
     }
-
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Packet packet) throws Exception {
         // Handle the received packet.
         logger.info("Replica received packet: " + packet.getData());
-        if(packet.getHeader().isFirstMessage()){
+        Header header = packet.getHeader();
+        if (header.isFirstMessage() && !header.isReplica()) {
             logger.info("First message from client: " + packet.getSenderId());
             logger.info("senderId: " + packet.getSenderId());
             replica.addClientConnection(packet.getHeader().getSenderId(), ctx);
-        }else{
+        } else if (header.isFirstMessage() && header.isReplica()) {
+            InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
+            String mapKey = socketAddress.getAddress().getHostAddress() + ":" + socketAddress.getPort();
+            replica.setReplicaChannel(mapKey, ctx.channel());
+            logger.info("New connection from: " + socketAddress);
+        } else {
             validateSequence(packet);
             processPacket(ctx, packet);
         }
 
-
     }
 
-    private void validateSequence(Packet packet){
+    private void validateSequence(Packet packet) {
         Short clientKey = packet.getSenderId();
         long receivedSeqNum = packet.getHeader().getSequenceNumber();
 
@@ -45,19 +49,20 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<Packet> {
             replica.addRecentPacket(clientKey, packet);
         } else if (receivedSeqNum <= lastSeqNum) {
             // Packet is a duplicate or out of order
-            logger.warning("Received out of order or duplicate packet. Expected: " + (lastSeqNum + 1) + ", but received: " + receivedSeqNum);
+            logger.warning("Received out of order or duplicate packet. Expected: " + (lastSeqNum + 1)
+                    + ", but received: " + receivedSeqNum);
             // Handle the out-of-order or duplicate packet appropriately
         } else {
             // There is a gap in the sequence
-            logger.warning("Gap in the packet sequence. Expected: " + (lastSeqNum + 1) + ", but received: " + receivedSeqNum);
+            logger.warning(
+                    "Gap in the packet sequence. Expected: " + (lastSeqNum + 1) + ", but received: " + receivedSeqNum);
             // Handle the missing packet(s)
             // For example, you might notify other replicas to request the missing packet(s)
         }
 
-
     }
 
-    private void processPacket(ChannelHandlerContext ctx, Packet packet){
+    private void processPacket(ChannelHandlerContext ctx, Packet packet) {
         Short clientKey = packet.getSenderId();
 
         Header header = new Header(packet.getSenderId());

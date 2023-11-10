@@ -11,12 +11,14 @@ if ($LastExitCode -ne 0) {
 # Start the replicas
 Write-Host "Starting replicas..."
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "java -cp target/paxos-implementation-0.1.0-SNAPSHOT.jar models.Replica 9001"
+Start-Sleep -Seconds 2
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "java -cp target/paxos-implementation-0.1.0-SNAPSHOT.jar models.Replica 9002"
+Start-Sleep -Seconds 2
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "java -cp target/paxos-implementation-0.1.0-SNAPSHOT.jar models.Replica 9003"
 
 
 # Wait a bit for replicas to initialize
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 5
 
 # Start the sequencer
 Write-Host "Starting the sequencer..."

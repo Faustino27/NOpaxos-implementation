@@ -7,11 +7,13 @@ public class Header implements Serializable {
     private String groupId; // The ID of the group to which the packet belongs
     private short senderId;
     private boolean firstMessage;
+    private boolean replica;
 
     // Constructor, getters, and setters for the Header class
     public Header(short senderId) {
         this.senderId = senderId;
         this.firstMessage = false;
+        this.replica = true;
     }
 
     public Header(short senderId, int sequenceNumber) {
@@ -48,6 +50,13 @@ public class Header implements Serializable {
 
     public boolean isFirstMessage() {
         return this.firstMessage;
+    }
+    public void setReplica(boolean isReplica) {
+        this.replica = isReplica;
+    }
+
+    public boolean isReplica() {
+        return this.replica;
     }
 
     @Override
