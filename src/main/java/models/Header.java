@@ -4,24 +4,18 @@ import java.io.Serializable;
 
 public class Header implements Serializable {
     private int sequenceNumber; // The sequence number assigned by the sequencer
-    private String groupId; // The ID of the group to which the packet belongs
     private short senderId;
-    private boolean firstMessage;
-    private boolean replica;
-
+    private short messageType;
+    // 0 = client hand Shake, 1 - Client request, 2 - replica hand Shake, 3 - replica request, 4 - replica response
     // Constructor, getters, and setters for the Header class
     public Header(short senderId) {
         this.senderId = senderId;
-        this.firstMessage = false;
-        this.replica = true;
+        this.messageType = 1;
     }
 
-    public Header(short senderId, int sequenceNumber) {
-        this.sequenceNumber = sequenceNumber;
-        // this.senderAdress = senderAdress;
+    public Header(short senderId, short messageType) {
         this.senderId = senderId;
-        this.firstMessage = false;
-
+        this.messageType = messageType;
     }
 
     public int getSequenceNumber() {
@@ -32,10 +26,6 @@ public class Header implements Serializable {
         this.sequenceNumber = sequenceNumber;
     }
 
-    public String getGroupId() {
-        return groupId;
-    }
-
     public short getSenderId() {
         return senderId;
     }
@@ -44,21 +34,13 @@ public class Header implements Serializable {
         this.senderId = senderId;
     }
 
-    public void setFirstMessage(boolean firstMessage) {
-        this.firstMessage = firstMessage;
+    public void setMessageType(short messageType) {
+        this.messageType = messageType;
     }
 
-    public boolean isFirstMessage() {
-        return this.firstMessage;
+    public short getMessageType() {
+        return this.messageType;
     }
-    public void setReplica(boolean isReplica) {
-        this.replica = isReplica;
-    }
-
-    public boolean isReplica() {
-        return this.replica;
-    }
-
     @Override
     public String toString() {
         return "Header{" +

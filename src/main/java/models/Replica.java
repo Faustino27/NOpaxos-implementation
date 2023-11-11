@@ -28,9 +28,9 @@ public class Replica {
     private static final Logger logger = Logger.getLogger(Replica.class.getName());
 
     private static final ConcurrentHashMap<Short, ChannelHandlerContext> clientConnections = new ConcurrentHashMap<>();
-    private final Map<Short, Long> lastSequenceNumber = new HashMap<>();
+    private final Map<Short, Integer> lastSequenceNumber = new HashMap<>();
     private final Map<String, Channel> replicaChannels = new HashMap<>();
-    private final Map<Short, LinkedHashSet<Packet>> recentPackets = new HashMap<>();
+    private final Map<Short, LinkedHashSet<Packet>>  recentPackets = new HashMap<>();
     private final EventLoopGroup group = new NioEventLoopGroup();
     private final int maxRecentPackets = 100;
     private Properties properties;
@@ -46,6 +46,9 @@ public class Replica {
             e.printStackTrace();
         }
     }
+    public Map<String, Channel> getReplicaChannels() {
+        return new HashMap<>(this.replicaChannels);
+    }
 
     public void addClientConnection(Short clientId, ChannelHandlerContext ctx) {
         clientConnections.put(clientId, ctx);
@@ -59,12 +62,12 @@ public class Replica {
         clientConnections.remove(clientId);
     }
 
-    public synchronized void updateSequenceNumber(Short clientKey, long sequenceNumber) {
+    public synchronized void updateSequenceNumber(Short clientKey, int sequenceNumber) {
         lastSequenceNumber.put(clientKey, sequenceNumber);
     }
 
-    public synchronized Long getLastSequenceNumber(Short clientKey) {
-        return lastSequenceNumber.getOrDefault(clientKey, 0L);
+    public synchronized Integer getLastSequenceNumber(Short clientKey) {
+        return lastSequenceNumber.getOrDefault(clientKey, 0);
     }
 
     public void setReplicaChannel(String key, Channel value) {
@@ -139,8 +142,8 @@ public class Replica {
 
     private void sendHandShakeReplica(String mapKey) {
         String message = "First Mensage"; // Random number between 0 and 999
-        Header header = new Header((short) 1);
-        header.setFirstMessage(true);
+        Header header = new Header((short) 1,(short)2);
+        // 2 = hand shake replica - replica
         Packet packet = new Packet(header, message);
         packet.setData(message);
         Channel repliChannel = replicaChannels.get(mapKey);
@@ -158,4 +161,17 @@ public class Replica {
         Replica replica = new Replica(port);
         replica.start();
     }
+
+    public LinkedHashSet<Packet> getMissingPackets(Packet packet) {
+        //return a list of missing packets with the  sequence number greater or equal to the sequence number of the packet
+        LinkedHashSet<Packet> packets = recentPackets.get(packet.getSenderId());
+        for (Packet p : packets) {
+            if (p.getHeader().getSequenceNumber() >= packet.getHeader().getSequenceNumber()) {
+                packets.remove(p);
+            }
+        }
+        return packets;
+
+    }
+
 }

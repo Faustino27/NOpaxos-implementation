@@ -107,8 +107,8 @@ public class Client {
 
     public void sendRequestReplica(int replicaNumber) {
         String message = "First Mensage"; // Random number between 0 and 999
-        Header header = new Header(clientId);
-        header.setFirstMessage(true);
+        // 0 = hand shake client - replica
+        Header header = new Header(clientId, (short)0);
         Packet packet = new Packet(header, message);
         packet.setData(message);
         
