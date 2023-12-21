@@ -26,6 +26,9 @@ public class Packet implements Serializable{
     public Header getHeader() {
         return header;
     }
+    public int getSequenceNumber() {
+        return header.getSequenceNumber();
+    }
 
     public void setHeader(Header header) {
         this.header = header;

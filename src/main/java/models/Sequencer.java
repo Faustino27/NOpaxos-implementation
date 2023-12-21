@@ -1,7 +1,9 @@
 package models;
 
 import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -16,18 +18,20 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Sequencer {
 
-    private Map<Short, Integer> senderCounters; // A map to maintain counters for different senders
-    // private Map<String, Integer> sessionNumbers; // A map to maintain OUM session
-    // numbers for different groups
-    private Map<String, Channel> replicaChannels = new HashMap<>(); // Maintains connections to replicas
+    final int MAX_ENTRIES = 100;
 
+    LinkedHashMap<String, Boolean> messagesSent = new LinkedHashMap<String, Boolean>(MAX_ENTRIES + 1, 1.0f, false) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+            return size() > MAX_ENTRIES;
+        }
+    };
+    private Integer counter = 0;
+    private Map<String, Channel> replicaChannels = new HashMap<>(); 
     private Properties properties;
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
 
     public Sequencer() {
-        this.senderCounters = new HashMap<>(); // Initialize the group counters map
-        // this.sessionNumbers = new HashMap<>(); // Initialize the OUM session numbers
-        // map
         properties = new Properties();
         try {
             FileInputStream fis = new FileInputStream("config.properties");
@@ -50,22 +54,21 @@ public class Sequencer {
         }
 
         Header header = packet.getHeader(); // Get the header from the packet
-        short senderId = header.getSenderId(); // Get the group ID from the header
+        String messageId = header.getSenderId() +":" + header.getSequenceNumber();
+        //logger.info("Message id: " + messageId);
 
-        // Get and update the counter for the group
-        int senderCounter = this.senderCounters.getOrDefault(senderId, 0);
-        // if(senderCounter == 3){
-        //     this.senderCounters.put(senderId, 6);
-        // }else{
-        // }
-        
-        this.senderCounters.put(senderId, senderCounter + 1);
-        header.setSequenceNumber(senderCounter);
+        if(messagesSent.containsKey(messageId)){
+            logger.info("Message already sent");
+            return;
+        }
 
+        messagesSent.put(messageId, true);
+
+        header.setSequenceNumber(counter++);
         // Log the processing of the packet
         logger.info(String.format("Processed packet from client %s with sequence number %d",
-                header.getSenderId(), senderCounter));
-        logger.info("Packet data: " + packet.getData());
+                header.getSenderId(), counter-1));
+        //logger.info("Packet data: " + packet.getData());
         forwardPacketToReplicas(packet);
     }
 
@@ -102,7 +105,11 @@ public class Sequencer {
     public void forwardPacketToReplicas(Packet packet) {
         for (Channel channel : replicaChannels.values()) {
             if (channel.isActive()) {
-                channel.writeAndFlush(packet);
+                if(replicaChannels.get("replica1") == channel && counter == 2){
+                    logger.info("Simulando falha na replica 1");
+                }else{
+                    channel.writeAndFlush(Arrays.asList(packet));
+                }
             } else {
                 // Handle disconnected replicas (e.g., retries, logging, etc.)
             }

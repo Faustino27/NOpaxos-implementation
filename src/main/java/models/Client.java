@@ -1,11 +1,12 @@
 package models;
 
 import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.Bootstrap;
@@ -23,11 +24,12 @@ public class Client {
     private Bootstrap bootstrap;
     private Channel sequencerChannel;
     private Map<String, Channel> replicaChannels = new HashMap<>();
+    private int lastSequenceNumber = 0;
     private Properties properties;
 
-    private final AtomicBoolean shouldSendNewRequest = new AtomicBoolean(true);
+    private final AtomicInteger shouldSendNewRequest = new AtomicInteger(-1);
 
-    public boolean getAndSetShouldSendNewRequest(boolean newValue) {
+    public int getAndSetShouldSendNewRequest(int newValue) {
         return shouldSendNewRequest.getAndSet(newValue);
     }
 
@@ -38,7 +40,7 @@ public class Client {
         this.hostSequencer = host;
         this.portSequencer = port;
         this.clientId = (short) new Random().nextInt(Short.MAX_VALUE + 1);
-        
+
         properties = new Properties();
         try {
             FileInputStream fis = new FileInputStream("config.properties");
@@ -47,9 +49,11 @@ public class Client {
             e.printStackTrace();
         }
     }
+
     public short getClientId() {
         return this.clientId;
     }
+
     public void start() {
         group = new NioEventLoopGroup();
 
@@ -65,21 +69,15 @@ public class Client {
             connectToReplicas();
             Header header = new Header(this.clientId);
             logger.info("Header's senderId: " + header.getSenderId());
+            header.setSequenceNumber(lastSequenceNumber++);
+            logger.info("Header's sequenceNumber: " + lastSequenceNumber);
 
-            Packet myPacket = new Packet(header, "Hello world!");
+            sendRequestSequencer(header);
 
-            //while (true) {
-                // Send messages or perform other client operations here
-                sendRequestSequencer(myPacket);
-                // Sleep for a random duration between 2 to 5 seconds
-                //TimeUnit.SECONDS.sleep(5 + rand.nextInt(10));
-            //}
         } catch (Exception e) {
             e.printStackTrace();
-        } 
-        // finally {
-        //     group.shutdownGracefully();
-        // }
+        }
+
     }
 
     public void stop() {
@@ -93,10 +91,11 @@ public class Client {
         }
     }
 
-    public void sendRequestSequencer(Packet packet) {
+    public void sendRequestSequencer(Header header) {
         Random rand = new Random();
-        String message = "\nHello replica this is a random integer" + rand.nextInt(1000); // Random number between 0 and 999
-        packet.setData(message);
+        String message = "\nHello replica this is a random integer " + rand.nextInt(1000); // Random number between 0 and
+                                                                                          // 999
+        Packet packet = new Packet(header, message);
         if (sequencerChannel != null && sequencerChannel.isActive()) {
             logger.info("Client " + clientId + " is sending the request: " + packet.toString());
             sequencerChannel.writeAndFlush(packet); // Send the packet to the sequencer
@@ -108,27 +107,28 @@ public class Client {
     public void sendRequestReplica(int replicaNumber) {
         String message = "First Mensage"; // Random number between 0 and 999
         // 0 = hand shake client - replica
-        Header header = new Header(clientId, (short)0);
+        Header header = new Header(clientId, (short) 0);
         Packet packet = new Packet(header, message);
         packet.setData(message);
-        
+
         Channel repliChannel = replicaChannels.get("replica" + replicaNumber);
         if (repliChannel != null && repliChannel.isActive()) {
             logger.info("SENDING FIRST MENSAGE TO REPLICA " + replicaNumber);
-            repliChannel.writeAndFlush(packet); // Send the packet to the sequencer
+            repliChannel.writeAndFlush(Arrays.asList(packet)); // Send the packet to the sequencer
         } else {
             logger.warning("Replica Channel is not active. Cannot send packet.");
         }
     }
 
-    
     public void connectToReplicas() {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group)
                 .channel(NioSocketChannel.class)
-                .handler(new ClientInitializer(this)); // Use an initializer appropriate for client-replica communication
+                .handler(new ClientInitializer(this)); // Use an initializer appropriate for client-replica
+                                                       // communication
 
-        // Assuming you have the IP and port for each replica in a properties file or some configuration
+        // Assuming you have the IP and port for each replica in a properties file or
+        // some configuration
         for (int i = 1; i <= 3; i++) { // Adjust the loop to match the number of replicas
             String ip = properties.getProperty("replica" + i + ".ip");
             int port = Integer.parseInt(properties.getProperty("replica" + i + ".port"));
@@ -144,10 +144,14 @@ public class Client {
         }
     }
 
+    public int getLastSequenceNumber() {
+        return lastSequenceNumber++;
+    }
+
     public static void main(String[] args) {
         Client client = new Client("localhost", 8080);
         client.start();
-        //client.stop();
+        // client.stop();
     }
 
 }

@@ -17,24 +17,21 @@ public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
     }
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Packet packet) throws Exception {
-        logger.info("Received response: " + packet.getData());
-        if (client.getAndSetShouldSendNewRequest(false)) {
-            // ... handle the response ...
-    
+        logger.info("Client received packet: " + packet.getData());
+        if (packet.getSequenceNumber() != client.getAndSetShouldSendNewRequest(packet.getSequenceNumber())) {
             logger.info("Received response: " + packet.getData());
             Header header = new Header(client.getClientId());
             int timer = 5 + rand.nextInt(10);
             logger.info("Client will wait " + timer + " seconds before sending next packet.");
             
             TimeUnit.SECONDS.sleep(timer);
+
+            header.setSequenceNumber(client.getLastSequenceNumber());
     
-            Packet myPacket = new Packet(header, "");
-    
-            client.sendRequestSequencer(myPacket);
-            client.getAndSetShouldSendNewRequest(true);
+            client.sendRequestSequencer(header);
             
         } else {
-            logger.info("Ignoring additional response: " + packet.getData());
+            logger.info("Alrady processed this packet. Ignoring.");
         }
     }
 
