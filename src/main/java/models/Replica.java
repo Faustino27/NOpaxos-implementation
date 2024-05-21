@@ -59,9 +59,8 @@ public class Replica {
         }
     }
 
-    public synchronized void addRecentPacket(Packet packet) {
+    public synchronized void addToRecentPacketSet(Packet packet) {
         if (recentPackets.size() >= maxRecentPackets) {
-            // Remove the oldest packet if we exceed the max number of recent packets
             Packet oldestPacket = recentPackets.iterator().next();
             recentPackets.remove(oldestPacket);
         }
@@ -95,19 +94,7 @@ public class Replica {
             String ip = properties.getProperty("replica" + replicaNumber + ".ip");
             String mapKey = ip + ":" + port;
 
-            Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(group)
-                    .channel(NioSocketChannel.class)
-                    .handler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel ch) {
-                            ch.pipeline().addLast(new ObjectEncoder());
-                            ch.pipeline().addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
-                            ch.pipeline().addLast(new ReplicaServerHandler(Replica.this));
-                        }
-                    });
-
-            // Connect to the other replicas
+            Bootstrap bootstrap = getBootstrap();
             try {
                 Channel channel = bootstrap.connect(ip, port).sync().channel();
                 replicaChannels.put(mapKey, channel);
@@ -120,16 +107,31 @@ public class Replica {
         }
     }
 
+    private Bootstrap getBootstrap() {
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(group)
+                .channel(NioSocketChannel.class)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline().addLast(new ObjectEncoder());
+                        ch.pipeline().addLast(new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
+                        ch.pipeline().addLast(new ReplicaServerHandler(Replica.this));
+                    }
+                });
+        return bootstrap;
+    }
+
     private void sendHandShakeReplica(String mapKey) {
-        String message = "First Mensage"; // Random number between 0 and 999
+        String message = "First Mensage";
         Header header = new Header((short) 1, (short) 2);
-        // 2 = hand shake replica - replica
+        // 2 = hand shake replica to replica
         Packet packet = new Packet(header, message);
         packet.setData(message);
-        Channel repliChannel = replicaChannels.get(mapKey);
-        if (repliChannel != null && repliChannel.isActive()) {
-            logger.info("Seding Hand Shake to replica " + mapKey);
-            repliChannel.writeAndFlush(Arrays.asList(packet)); 
+        Channel replicaChannel = replicaChannels.get(mapKey);
+        if (replicaChannel != null && replicaChannel.isActive()) {
+            logger.fine("Seding Hand Shake to replica " + mapKey);
+            replicaChannel.writeAndFlush(Arrays.asList(packet)); 
         } else {
             logger.warning("Replica Channel is not active. Cannot send packet.");
         }
@@ -144,16 +146,16 @@ public class Replica {
 
     }
 
-    public List<Packet> getMissingPackets(Packet packet) {
+    public List<Packet> processMissingPacketsRequest(Packet packet) {
         List<Packet> packets = new ArrayList<>();
         int[] numbers = getNumbers(packet.getData());
-        logger.info("Getting missing packets between " + numbers[0] + " and " + numbers[1]);
+        logger.info("Organizing missing packets between " + numbers[0] + " and " + numbers[1]);
         for (Packet p : recentPackets) {
             if (numbers[1] <= p.getSequenceNumber()) {
                 break;
             }
             if (numbers[0] <= p.getSequenceNumber()) {
-                logger.info("Adding packet to missing packets list: " + p.getSequenceNumber() + " - first = "
+                logger.info("Adding packet {"+ p.getSequenceNumber() +"} to missing packets list. First packet = "
                         + numbers[0]);
                 Packet copy = new Packet(p.getHeader(), p.getData());
                 copy.getHeader().setMessageType((short) 4);
@@ -173,7 +175,7 @@ public class Replica {
         synchronized (lockObject) {
             if ((packetQueue.isEmpty() && waitingQueue.isEmpty())) {
                 try {
-                    lockObject.wait(); // Wait until a condition might be true
+                    lockObject.wait();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt(); // Handle interrupted exception
                     return;
@@ -183,7 +185,7 @@ public class Replica {
 
         if (!packetQueue.isEmpty()
                 && packetQueue.peek().getSequenceNumber() == expectedPacketToProcess) {
-            logger.info("Processing first packet in queue: " + packetQueue.peek().getSequenceNumber());
+            logger.info("Processing first packet in RECENT queue: " + packetQueue.peek().getSequenceNumber());
             processPacket(removeFromPacketQueue());
             expectedPacketToProcess++;
         } else if (!waitingQueue.isEmpty() && waitingQueue.peek().getSequenceNumber() == expectedPacketToProcess) {
@@ -279,7 +281,7 @@ public class Replica {
         clientConnections.remove(clientId);
     }
 
-    public synchronized void updateSequenceNumber(int sequenceNumber) {
+    public synchronized void updateLastSequenceNumber(int sequenceNumber) {
         lastSequenceNumber = sequenceNumber;
     }
 

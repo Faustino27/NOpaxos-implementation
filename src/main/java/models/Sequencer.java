@@ -41,8 +41,6 @@ public class Sequencer {
         }
     }
 
-    // Method to process a packet (assign a sequence number and update the session
-    // number)
     public void processPacket(Packet packet) {
         if (packet == null) {
             logger.warning("Received packet is null.");
@@ -55,7 +53,6 @@ public class Sequencer {
 
         Header header = packet.getHeader(); // Get the header from the packet
         String messageId = header.getSenderId() +":" + header.getSequenceNumber();
-        //logger.info("Message id: " + messageId);
 
         if(messagesSent.containsKey(messageId)){
             logger.info("Message already sent");
@@ -65,10 +62,9 @@ public class Sequencer {
         messagesSent.put(messageId, true);
 
         header.setSequenceNumber(counter++);
-        // Log the processing of the packet
-        logger.info(String.format("Processed packet from client %s with sequence number %d",
+         logger.info(String.format("Processed packet from client %s with sequence number %d",
                 header.getSenderId(), counter-1));
-        //logger.info("Packet data: " + packet.getData());
+
         forwardPacketToReplicas(packet);
     }
 
@@ -111,7 +107,7 @@ public class Sequencer {
                     channel.writeAndFlush(Arrays.asList(packet));
                 }
             } else {
-                // Handle disconnected replicas (e.g., retries, logging, etc.)
+                // Handle disconnected replicas
             }
         }
     }
@@ -120,7 +116,7 @@ public class Sequencer {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(new NioEventLoopGroup())
                 .channel(NioSocketChannel.class)
-                .handler(new SequencerReplicaInitializer()); // This will handle communication with replicas
+                .handler(new SequencerReplicaInitializer());
 
         for (int i = 1; i <= 3; i++) {
             String ip = properties.getProperty("replica" + i + ".ip");
@@ -132,7 +128,7 @@ public class Sequencer {
                 logger.info("Connected to replica" + i + " at " + ip + ":" + port);
             } catch (InterruptedException e) {
                 logger.severe("Error while connecting to replica" + i + ": " + e.getMessage());
-                e.printStackTrace(); // or log it using a logger
+                e.printStackTrace();
             }
         }
     }

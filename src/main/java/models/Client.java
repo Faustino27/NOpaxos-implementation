@@ -92,21 +92,22 @@ public class Client {
     }
 
     public void sendRequestSequencer(Header header) {
-        Random rand = new Random();
-        String message = "\nHello replica this is a random integer " + rand.nextInt(1000); // Random number between 0 and
-                                                                                          // 999
-        Packet packet = new Packet(header, message);
+        Packet packet = new Packet(header, genereateNewMenssage());
         if (sequencerChannel != null && sequencerChannel.isActive()) {
             logger.info("Client " + clientId + " is sending the request: " + packet.toString());
-            sequencerChannel.writeAndFlush(packet); // Send the packet to the sequencer
+            sequencerChannel.writeAndFlush(packet);
         } else {
             logger.warning("Sequencer Channel is not active. Cannot send packet.");
         }
     }
 
+    public String genereateNewMenssage() {
+        Random rand = new Random();
+        return "Random Integer sent from client: " + rand.nextInt(1000);
+    }
+
     public void sendRequestReplica(int replicaNumber) {
-        String message = "First Mensage"; // Random number between 0 and 999
-        // 0 = hand shake client - replica
+        String message = "First Mensage"; 
         Header header = new Header(clientId, (short) 0);
         Packet packet = new Packet(header, message);
         packet.setData(message);
@@ -114,7 +115,7 @@ public class Client {
         Channel repliChannel = replicaChannels.get("replica" + replicaNumber);
         if (repliChannel != null && repliChannel.isActive()) {
             logger.info("SENDING FIRST MENSAGE TO REPLICA " + replicaNumber);
-            repliChannel.writeAndFlush(Arrays.asList(packet)); // Send the packet to the sequencer
+            repliChannel.writeAndFlush(Arrays.asList(packet));
         } else {
             logger.warning("Replica Channel is not active. Cannot send packet.");
         }
@@ -124,11 +125,7 @@ public class Client {
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group)
                 .channel(NioSocketChannel.class)
-                .handler(new ClientInitializer(this)); // Use an initializer appropriate for client-replica
-                                                       // communication
-
-        // Assuming you have the IP and port for each replica in a properties file or
-        // some configuration
+                .handler(new ClientInitializer(this));
         for (int i = 1; i <= 3; i++) { // Adjust the loop to match the number of replicas
             String ip = properties.getProperty("replica" + i + ".ip");
             int port = Integer.parseInt(properties.getProperty("replica" + i + ".port"));

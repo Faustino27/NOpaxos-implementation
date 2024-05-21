@@ -60,22 +60,17 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
         int lastSeqNum = replica.getLastSequenceNumber();
         if (receivedSeqNum == lastSeqNum) {
             logger.info("Received expected packet: " + receivedSeqNum);
-            // Update the last sequence number in the Replica
-            replica.updateSequenceNumber(receivedSeqNum + 1);
-            // Add this packet to the recent packets list in the Replica
+            replica.updateLastSequenceNumber(receivedSeqNum + 1);
             replica.addToPacketQueue(packet);
-            replica.addRecentPacket(packet);
+            replica.addToRecentPacketSet(packet);
         } else if (receivedSeqNum <= lastSeqNum) {
             // Packet is a duplicate or out of order
         } else {
             // There is a gap in the sequence
             logger.warning(
-                    "Gap in the packet sequence. Expected: " + (lastSeqNum) + ", but received: " + receivedSeqNum);
-            logger.info("Adding packet to waiting queue");
+                    "Gap in the packet sequence. Expected {" + (lastSeqNum) + "}, but received: {" + receivedSeqNum + "} \nAdding packet to waiting queue");
             replica.addToWaitingQueue(packet);
             sendReplicasOrderRequest(lastSeqNum, packet);
-            // Handle the missing packet(s)
-            // For example, you might notify other replicas to request the missing packet(s)
         }
 
     }
@@ -99,7 +94,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
 
     private void receivedReplicaRequest(Packet packet, ChannelHandlerContext ctx) {
         // Check if the packet is in the recent packets list
-        List<Packet> missingPackets = replica.getMissingPackets(packet);
+        List<Packet> missingPackets = replica.processMissingPacketsRequest(packet);
         logger.info("Missing packets: " + missingPackets);
         if (missingPackets.size() > 0) {
             ctx.writeAndFlush(missingPackets);
