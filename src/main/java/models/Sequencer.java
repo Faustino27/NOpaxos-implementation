@@ -27,9 +27,10 @@ public class Sequencer {
         }
     };
     private Integer counter = 0;
-    private Map<String, Channel> replicaChannels = new HashMap<>(); 
+    private Map<String, Channel> replicaChannels = new HashMap<>();
     private Properties properties;
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
+    private Usig usig = new Usig();
 
     public Sequencer() {
         properties = new Properties();
@@ -52,18 +53,23 @@ public class Sequencer {
         }
 
         Header header = packet.getHeader(); // Get the header from the packet
-        String messageId = header.getSenderId() +":" + header.getSequenceNumber();
+        String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
 
-        if(messagesSent.containsKey(messageId)){
+        if (messagesSent.containsKey(messageId)) {
             logger.info("Message already sent");
             return;
         }
 
+        
         messagesSent.put(messageId, true);
-
-        header.setSequenceNumber(counter++);
-         logger.info(String.format("Processed packet from client %s with sequence number %d",
-                header.getSenderId(), counter-1));
+        
+        SignatureCounterPair signedMessage = usig.signMessage(packet.getData());
+        header.setSignature(signedMessage.getSignature());
+        header.setSequenceNumber(signedMessage.getCounter());
+        counter = signedMessage.getCounter();
+        
+        logger.info(String.format("Processed packet from client %s with sequence number %d",
+                header.getSenderId(), counter - 1));
 
         forwardPacketToReplicas(packet);
     }
@@ -101,9 +107,9 @@ public class Sequencer {
     public void forwardPacketToReplicas(Packet packet) {
         for (Channel channel : replicaChannels.values()) {
             if (channel.isActive()) {
-                if(replicaChannels.get("replica1") == channel && counter == 2){
+                if (replicaChannels.get("replica1") == channel && counter == 2) {
                     logger.info("Simulando falha na replica 1");
-                }else{
+                } else {
                     channel.writeAndFlush(Arrays.asList(packet));
                 }
             } else {

@@ -15,20 +15,37 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
 public class PublicKeyImporter {
 
-    public static PublicKey importPublicKey() throws IOException {
-        FileReader fileReader = new FileReader("publicKey.pem");
-        PEMParser pemParser = new PEMParser(fileReader);
-        SubjectPublicKeyInfo subjectPublicKeyInfo = (SubjectPublicKeyInfo) pemParser.readObject();
-        pemParser.close();
-        JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
-        return converter.getPublicKey(subjectPublicKeyInfo);
+    PublicKey publicKey;
+
+    public PublicKeyImporter() {
+
+        this.publicKey = importPublicKey();
     }
 
-    public boolean verifySignature(String message, String signature, PublicKey publicKey)
-            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-        Signature sig = Signature.getInstance("SHA256withRSA");
-        sig.initVerify(publicKey);
-        sig.update(message.getBytes());
-        return sig.verify(Base64.getDecoder().decode(signature));
+    public static PublicKey importPublicKey() {
+        try {
+            FileReader fileReader = new FileReader("publicKey.pem");
+            PEMParser pemParser = new PEMParser(fileReader);
+            SubjectPublicKeyInfo subjectPublicKeyInfo = (SubjectPublicKeyInfo) pemParser.readObject();
+            pemParser.close();
+            JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+            return converter.getPublicKey(subjectPublicKeyInfo);
+        } catch (IOException e) {
+            System.out.println("Error importing public key");
+            return null;
+        }
+
+    }
+
+    public boolean verifySignature(String message, String signature){
+        try {
+            Signature sig = Signature.getInstance("SHA256withRSA");
+            sig.initVerify(this.publicKey);
+            sig.update(message.getBytes());
+            return sig.verify(Base64.getDecoder().decode(signature));
+        } catch (Exception e) {
+            System.out.println("Error verifying signature");
+            return false;
+        }
     }
 }

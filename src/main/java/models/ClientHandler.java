@@ -1,5 +1,7 @@
 package models;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -15,9 +17,14 @@ public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
     public ClientHandler(Client client) {
         this.client = client;
     }
+
+    private static List<Long> timingResults = new ArrayList<>();
+
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Packet packet) throws Exception {
         logger.info("Client received packet: " + packet.getData());
+        long startTime = System.nanoTime();
         if (packet.getSequenceNumber() != client.getAndSetShouldSendNewRequest(packet.getSequenceNumber())) {
             logger.info("Received response: " + packet.getData());
             Header header = new Header(client.getClientId());
@@ -33,6 +40,8 @@ public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
         } else {
             logger.info("Alrady processed this packet. Ignoring.");
         }
+        long endTime = System.nanoTime();
+        timingResults.add(endTime - startTime);
     }
 
     @Override

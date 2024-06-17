@@ -14,6 +14,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
 
     private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
     Replica replica;
+    PublicKeyImporter publicKeyImporter = new PublicKeyImporter();
 
     ReplicaServerHandler(Replica replica) {
         this.replica = replica;
@@ -58,6 +59,14 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     private void validateSequence(Packet packet) {
         int receivedSeqNum = packet.getSequenceNumber();
         int lastSeqNum = replica.getLastSequenceNumber();
+        if(packet.getSequenceNumber() == 3){
+           packet.getHeader().setSequenceNumber(0);
+        }
+        boolean validSignature = publicKeyImporter.verifySignature(packet.getData() + packet.getSequenceNumber(), packet.getHeader().getSignature());
+        if(!validSignature){
+            logger.warning("Invalid signature. Dropping packet.");
+            return;
+        }
         if (receivedSeqNum == lastSeqNum) {
             logger.info("Received expected packet: " + receivedSeqNum);
             replica.updateLastSequenceNumber(receivedSeqNum + 1);
@@ -66,7 +75,6 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
         } else if (receivedSeqNum <= lastSeqNum) {
             // Packet is a duplicate or out of order
         } else {
-            // There is a gap in the sequence
             logger.warning(
                     "Gap in the packet sequence. Expected {" + (lastSeqNum) + "}, but received: {" + receivedSeqNum + "} \nAdding packet to waiting queue");
             replica.addToWaitingQueue(packet);
