@@ -59,9 +59,6 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     private void validateSequence(Packet packet) {
         int receivedSeqNum = packet.getSequenceNumber();
         int lastSeqNum = replica.getLastSequenceNumber();
-        if(packet.getSequenceNumber() == 3){
-           packet.getHeader().setSequenceNumber(0);
-        }
         boolean validSignature = publicKeyImporter.verifySignature(packet.getData() + packet.getSequenceNumber(), packet.getHeader().getSignature());
         if(!validSignature){
             logger.warning("Invalid signature. Dropping packet.");

@@ -69,7 +69,7 @@ public class Sequencer {
         counter = signedMessage.getCounter();
         
         logger.info(String.format("Processed packet from client %s with sequence number %d",
-                header.getSenderId(), counter - 1));
+                header.getSenderId(), counter));
 
         forwardPacketToReplicas(packet);
     }
@@ -107,11 +107,7 @@ public class Sequencer {
     public void forwardPacketToReplicas(Packet packet) {
         for (Channel channel : replicaChannels.values()) {
             if (channel.isActive()) {
-                if (replicaChannels.get("replica1") == channel && counter == 2) {
-                    logger.info("Simulando falha na replica 1");
-                } else {
-                    channel.writeAndFlush(Arrays.asList(packet));
-                }
+                channel.writeAndFlush(Arrays.asList(packet));
             } else {
                 // Handle disconnected replicas
             }
@@ -120,6 +116,7 @@ public class Sequencer {
 
     public void connectToReplicas() {
         Bootstrap bootstrap = new Bootstrap();
+
         bootstrap.group(new NioEventLoopGroup())
                 .channel(NioSocketChannel.class)
                 .handler(new SequencerReplicaInitializer());

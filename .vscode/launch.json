@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "ClientThread",
+            "request": "launch",
+            "mainClass": "models.ClientThread",
+            "projectName": "paxos-implementation"
+        },
+        {
+            "type": "java",
             "name": "PublicKeyImporter",
             "request": "launch",
             "mainClass": "models.PublicKeyImporter",

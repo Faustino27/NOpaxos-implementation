@@ -103,14 +103,4 @@ public class Usig {
     public int getCounter() {
         return counter++;
     }
-
-    // public static void main(String[] args) throws Exception {
-    // Usig usig = new Usig();
-    // try {
-    // System.out.println("private Key = " + usig.privateKey.toString());
-    // System.out.println("Public key = " + usig.publicKey.toString());
-    // }catch (Exception e){
-    // e.printStackTrace();
-    // }
-    // }
 }

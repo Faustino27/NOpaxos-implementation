@@ -17,10 +17,10 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Client {
 
+    private static final Logger logger = Logger.getLogger(Client.class.getName());
     private final String hostSequencer;
     private final int portSequencer;
     private final short clientId;
-    private static final Logger logger = Logger.getLogger(Client.class.getName());
     private Bootstrap bootstrap;
     private Channel sequencerChannel;
     private Map<String, Channel> replicaChannels = new HashMap<>();
@@ -29,17 +29,21 @@ public class Client {
 
     private final AtomicInteger shouldSendNewRequest = new AtomicInteger(-1);
 
-    public int getAndSetShouldSendNewRequest(int newValue) {
-        return shouldSendNewRequest.getAndSet(newValue);
+    public boolean getAndSetShouldSendNewRequest(int newValue) {
+        if(newValue > shouldSendNewRequest.get()) {
+            shouldSendNewRequest.set(newValue);
+            return true;
+        }
+        return false;
     }
 
     private EventLoopGroup group; // Moved to class level to shut it down gracefully
     Random rand = new Random();
 
-    public Client(String host, int port) {
+    public Client(String host, int port, short id) {
         this.hostSequencer = host;
         this.portSequencer = port;
-        this.clientId = (short) new Random().nextInt(Short.MAX_VALUE + 1);
+        this.clientId = id;
 
         properties = new Properties();
         try {
@@ -145,10 +149,10 @@ public class Client {
         return lastSequenceNumber++;
     }
 
-    public static void main(String[] args) {
-        Client client = new Client("localhost", 8080);
-        client.start();
-        // client.stop();
-    }
+    // public static void main(String[] args) {
+    //     Client client = new Client("localhost", 8080);
+    //     client.start();
+    //     // client.stop();
+    // }
 
 }
