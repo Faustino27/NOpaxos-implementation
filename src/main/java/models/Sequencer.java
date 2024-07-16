@@ -3,7 +3,6 @@ package models;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -18,18 +17,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Sequencer {
 
-    final int MAX_ENTRIES = 100;
-
-    LinkedHashMap<String, Boolean> messagesSent = new LinkedHashMap<String, Boolean>(MAX_ENTRIES + 1, 1.0f, false) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
-            return size() > MAX_ENTRIES;
-        }
-    };
-    private Integer counter = 0;
     private Map<String, Channel> replicaChannels = new HashMap<>();
     private Properties properties;
-    private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
+    private final Logger logger = Logger.getLogger(Sequencer.class.getName());
     private Usig usig = new Usig();
 
     public Sequencer() {
@@ -53,23 +43,16 @@ public class Sequencer {
         }
 
         Header header = packet.getHeader(); // Get the header from the packet
-        String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
-
-        if (messagesSent.containsKey(messageId)) {
-            logger.info("Message already sent");
-            return;
-        }
-
-        
-        messagesSent.put(messageId, true);
+        //String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
         
         SignatureCounterPair signedMessage = usig.signMessage(packet.getData());
         header.setSignature(signedMessage.getSignature());
+
         header.setSequenceNumber(signedMessage.getCounter());
-        counter = signedMessage.getCounter();
+
         
-        logger.info(String.format("Processed packet from client %s with sequence number %d",
-                header.getSenderId(), counter));
+        // logger.info(String.format("Processed packet from client %s with sequence number %d",
+        //         header.getSenderId(), counter));
 
         forwardPacketToReplicas(packet);
     }

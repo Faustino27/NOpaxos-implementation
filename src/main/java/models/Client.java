@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
@@ -17,7 +16,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 public class Client {
 
-    private static final Logger logger = Logger.getLogger(Client.class.getName());
+    private final Logger logger = Logger.getLogger(Client.class.getName());
     private final String hostSequencer;
     private final int portSequencer;
     private final short clientId;
@@ -38,7 +37,6 @@ public class Client {
     }
 
     private EventLoopGroup group; // Moved to class level to shut it down gracefully
-    Random rand = new Random();
 
     public Client(String host, int port, short id) {
         this.hostSequencer = host;
@@ -98,7 +96,9 @@ public class Client {
     public void sendRequestSequencer(Header header) {
         Packet packet = new Packet(header, genereateNewMenssage());
         if (sequencerChannel != null && sequencerChannel.isActive()) {
-            logger.info("Client " + clientId + " is sending the request: " + packet.toString());
+            // if(clientId == 0) {
+            //     logger.info("Client " + clientId + " is sending the request: " + packet.toString());
+            // }
             sequencerChannel.writeAndFlush(packet);
         } else {
             logger.warning("Sequencer Channel is not active. Cannot send packet.");
@@ -106,8 +106,7 @@ public class Client {
     }
 
     public String genereateNewMenssage() {
-        Random rand = new Random();
-        return "Random Integer sent from client: " + rand.nextInt(1000);
+        return "New Mensage";
     }
 
     public void sendRequestReplica(int replicaNumber) {
@@ -148,11 +147,4 @@ public class Client {
     public int getLastSequenceNumber() {
         return lastSequenceNumber++;
     }
-
-    // public static void main(String[] args) {
-    //     Client client = new Client("localhost", 8080);
-    //     client.start();
-    //     // client.stop();
-    // }
-
 }

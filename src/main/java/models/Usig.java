@@ -12,6 +12,7 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.openssl.PEMKeyPair;
@@ -20,7 +21,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 
 public class Usig {
-    int counter = 0;
+    AtomicInteger counter = new AtomicInteger(0);
     public PrivateKey privateKey;
     public PublicKey publicKey;
 
@@ -101,6 +102,6 @@ public class Usig {
     }
 
     public int getCounter() {
-        return counter++;
+        return counter.getAndIncrement();
     }
 }

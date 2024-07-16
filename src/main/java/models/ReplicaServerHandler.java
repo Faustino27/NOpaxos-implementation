@@ -1,9 +1,13 @@
 package models;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 import io.netty.channel.Channel;
@@ -12,9 +16,13 @@ import io.netty.channel.SimpleChannelInboundHandler;
 
 public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packet>> {
 
-    private static final Logger logger = Logger.getLogger(Sequencer.class.getName());
+    private final Logger logger = Logger.getLogger(Sequencer.class.getName());
     Replica replica;
     PublicKeyImporter publicKeyImporter = new PublicKeyImporter();
+    AtomicBoolean alreadySentRequest = new AtomicBoolean(false);
+    Long startTime = System.nanoTime();
+    long totalRequests = 0;
+    private final long FIVE_SECONDS = 5000000000L;
 
     ReplicaServerHandler(Replica replica) {
         this.replica = replica;
@@ -24,7 +32,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     protected void channelRead0(ChannelHandlerContext ctx, List<Packet> packets) throws Exception {
         // Handle the received packet.
         for (Packet packet : packets) {
-            logger.info("Replica received packet: " + packet.getData());
+            //logger.info("Replica received packet: " + packet.getData());
             short messageType = packet.getHeader().getMessageType();
 
             switch (messageType) {
@@ -33,21 +41,30 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
                     replica.addClientConnection(packet.getSenderId(), ctx);
                     break;
                 case 1:
-                    logger.info("Replica received message from client: " + packet.getSenderId());
+
+                    //logger.info("Replica received message from client: " + packet.getSenderId());
                     validateSequence(packet);
+                    totalRequests++;
+                    if (System.nanoTime() - startTime >= FIVE_SECONDS) {
+                        startTime = System.nanoTime();
+                        writeTotalRequestsToFile();
+                    }
                     break;
                 case 2:
+
                     InetSocketAddress socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
                     String mapKey = socketAddress.getAddress().getHostAddress() + ":" + socketAddress.getPort();
                     replica.setReplicaChannel(mapKey, ctx.channel());
                     logger.info("New connection from: " + socketAddress);
                     break;
+
                 case 3:
-                    logger.info("Replica received request from replica: " + packet.getSenderId());
+                    //logger.info("Replica received request from replica: " + packet.getSenderId());
                     receivedReplicaRequest(packet, ctx);
                     break;
                 case 4:
-                    logger.info("Replica received response from replica: " + packet.getSenderId());
+                    //logger.info("Replica received response from replica: " + packet.getSenderId());
+                    alreadySentRequest.set(false);
                     validateSequence(packet);
                     break;
                 default:
@@ -59,24 +76,29 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     private void validateSequence(Packet packet) {
         int receivedSeqNum = packet.getSequenceNumber();
         int lastSeqNum = replica.getLastSequenceNumber();
-        boolean validSignature = publicKeyImporter.verifySignature(packet.getData() + packet.getSequenceNumber(), packet.getHeader().getSignature());
-        if(!validSignature){
+        boolean validSignature = publicKeyImporter.verifySignature(packet.getData() + packet.getSequenceNumber(),
+                packet.getHeader().getSignature());
+        if (!validSignature) {
             logger.warning("Invalid signature. Dropping packet.");
             return;
         }
         if (receivedSeqNum == lastSeqNum) {
-            logger.info("Received expected packet: " + receivedSeqNum);
+            //logger.info("Received expected packet: " + receivedSeqNum);
             replica.updateLastSequenceNumber(receivedSeqNum + 1);
             replica.addToPacketQueue(packet);
-            replica.addToRecentPacketSet(packet);
         } else if (receivedSeqNum <= lastSeqNum) {
             // Packet is a duplicate or out of order
         } else {
-            logger.warning(
-                    "Gap in the packet sequence. Expected {" + (lastSeqNum) + "}, but received: {" + receivedSeqNum + "} \nAdding packet to waiting queue");
-            replica.addToWaitingQueue(packet);
-            sendReplicasOrderRequest(lastSeqNum, packet);
+            // logger.warning(
+            //      "Gap in the packet sequence. Expected {" + (lastSeqNum) + "}, but received: {" + receivedSeqNum
+            //              + "} \nAdding packet to waiting queue");
+            replica.addToPacketMap(packet);
+            if (!alreadySentRequest.getAndSet(true)) {
+                sendReplicasOrderRequest(lastSeqNum, packet);
+            }
         }
+        replica.addToRecentPacketSet(packet);
+
 
     }
 
@@ -89,27 +111,39 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
         for (Map.Entry<String, Channel> entry : replicaChannels.entrySet()) {
             Channel replicaChannel = entry.getValue();
             if (replicaChannel != null && replicaChannel.isActive()) {
-                logger.info("Sending request to replica: " + entry.getKey() + " for missing packets");
+                //logger.info("Sending request to replica: " + entry.getKey() + " for missing packets");
                 replicaChannel.writeAndFlush(Arrays.asList(packet)); // Send the packet to the sequencer
             } else {
-                logger.warning("Replica Channel is not active. Cannot send packet.");
+                //logger.warning("Replica Channel is not active. Cannot send packet.");
             }
         }
     }
 
     private void receivedReplicaRequest(Packet packet, ChannelHandlerContext ctx) {
-        // Check if the packet is in the recent packets list
         List<Packet> missingPackets = replica.processMissingPacketsRequest(packet);
-        logger.info("Missing packets: " + missingPackets);
+        //logger.info("Missing packets: " + missingPackets);
         if (missingPackets.size() > 0) {
             ctx.writeAndFlush(missingPackets);
         } else {
-            logger.info("No missing packets found");
+            //logger.info("No missing packets found");
         }
     }
+
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
         ctx.close();
+    }
+
+    private void writeTotalRequestsToFile() {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("total_requests.txt"))) {
+                writer.write(totalRequests + "");
+                writer.newLine();
+                logger.info(
+                        "Writing total requests made to replica" + replica.getReplicaId()
+                                + "to file total_requests.txt");
+            } catch (IOException e) {
+                logger.severe("Error writing timing results to file: " + e.getMessage());
+            }
     }
 }

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -32,23 +33,28 @@ import io.netty.handler.codec.serialization.ObjectEncoder;
 public class Replica {
 
     private final int myPort;
-    private static final Logger logger = Logger.getLogger(Replica.class.getName());
+    private int replicaId;
 
-    private static final ConcurrentHashMap<Short, ChannelHandlerContext> clientConnections = new ConcurrentHashMap<>();
+
+
+    private final Logger logger = Logger.getLogger(Replica.class.getName());
+
+    private final ConcurrentHashMap<Short, ChannelHandlerContext> clientConnections = new ConcurrentHashMap<>();
     private Integer lastSequenceNumber = 0;
     private Integer expectedPacketToProcess = 0;
 
-    private final Map<String, Channel> replicaChannels = new HashMap<>();
-    private final LinkedHashSet<Packet> recentPackets = new LinkedHashSet<>();
-    private final BlockingQueue<Packet> waitingQueue = new LinkedBlockingQueue<>();
-    private final BlockingQueue<Packet> packetQueue = new LinkedBlockingQueue<>();
-    private final EventLoopGroup group = new NioEventLoopGroup(1);
-    private final int maxRecentPackets = 100;
+    private Map<String, Channel> replicaChannels = new HashMap<>();
+    private LinkedHashSet<Packet> recentPackets = new LinkedHashSet<>();
+    private BlockingQueue<Packet> packetQueue = new LinkedBlockingQueue<>();
+    private EventLoopGroup group = new NioEventLoopGroup(1);
+    private int maxRecentPackets = 10000;
     private Properties properties;
     private final Object lockObject = new Object(); // This lock object is shared across threads
 
+    private final ConcurrentSkipListMap<Integer, Packet> packetMap = new ConcurrentSkipListMap<>();
     public Replica(int myPort) {
         this.myPort = myPort;
+        replicaId= 9000-myPort;
 
         properties = new Properties();
         try {
@@ -60,7 +66,7 @@ public class Replica {
     }
 
     public synchronized void addToRecentPacketSet(Packet packet) {
-        if (recentPackets.size() >= maxRecentPackets) {
+    if (recentPackets.size() >= maxRecentPackets) {
             Packet oldestPacket = recentPackets.iterator().next();
             recentPackets.remove(oldestPacket);
         }
@@ -139,7 +145,6 @@ public class Replica {
 
     public static void main(String[] args) {
         int port = Integer.parseInt(args[0]); // Pass the port number as a command-line argument
-        logger.info("Starting replica on port " + port);
         Replica replica = new Replica(port);
         new Thread(replica::processPacketLoop).start();
         replica.start();
@@ -172,25 +177,27 @@ public class Replica {
     }
 
     private void processFirstPacketQueue() {
-        synchronized (lockObject) {
-            if ((packetQueue.isEmpty() && waitingQueue.isEmpty())) {
-                try {
-                    lockObject.wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt(); // Handle interrupted exception
-                    return;
-                }
-            }
-        }
+        // synchronized (lockObject) {
+        //     if ((packetQueue.isEmpty() && packetMap.isEmpty())) {
+        //         try {
+        //             lockObject.wait();
+        //         } catch (InterruptedException e) {
+        //             Thread.currentThread().interrupt(); // Handle interrupted exception
+        //             return;
+        //         }
+        //     }
+        // }
 
         if (!packetQueue.isEmpty()
                 && packetQueue.peek().getSequenceNumber() == expectedPacketToProcess) {
-            logger.info("Processing first packet in RECENT queue: " + packetQueue.peek().getSequenceNumber());
+            //logger.info("Processing first packet in RECENT queue: " + packetQueue.peek().getSequenceNumber());
             processPacket(removeFromPacketQueue());
             expectedPacketToProcess++;
-        } else if (!waitingQueue.isEmpty() && waitingQueue.peek().getSequenceNumber() == expectedPacketToProcess) {
-            logger.info("Processing first packet in WAITING queue: " + waitingQueue.peek().getSequenceNumber());
-            processPacket(removeFromWaitingQueue());
+        } 
+        if (!packetMap.isEmpty() && packetMap.containsKey(expectedPacketToProcess)) {
+            //logger.info("Processing first packet in WAITING queue: " + expectedPacketToProcess);
+            processPacket(packetMap.get(expectedPacketToProcess));
+            packetMap.remove(expectedPacketToProcess);
             expectedPacketToProcess++;
             lastSequenceNumber++;
         }
@@ -201,13 +208,13 @@ public class Replica {
         ChannelHandlerContext clientCtx = getClientConnection(clientKey);
         Packet responsePacket = new Packet(packet.getHeader(),
                 "Response to client " + packet.getSenderId() + ": replica " + this.myPort + " received your message.");
-        logger.info("Preparing to send response to client: " + packet.getHeader().getSenderId());
+        //logger.info("Preparing to send response to client: " + packet.getHeader().getSenderId());
         if (clientCtx != null && clientCtx.channel().isActive()) {
             clientCtx.writeAndFlush(responsePacket).addListener(future -> {
                 if (future.isSuccess()) {
-                    logger.info("Response sent to client: " + packet.getSenderId());
+                    //logger.info("Response sent to client: " + packet.getSenderId());
                 } else {
-                    logger.warning("Failed to send response to client: " + packet.getSenderId());
+                    //logger.warning("Failed to send response to client: " + packet.getSenderId());
                 }
             });
         } else {
@@ -216,7 +223,7 @@ public class Replica {
 
     }
 
-    private static int[] getNumbers(String str) {
+    private int[] getNumbers(String str) {
         Pattern pattern = Pattern.compile("first\\s*=\\s*(\\d+)\\s*and\\s*last\\s*=\\s*(\\d+)");
         Matcher matcher = pattern.matcher(str);
 
@@ -229,23 +236,12 @@ public class Replica {
         }
     }
 
-    public void addToWaitingQueue(Packet packet) {
-        this.waitingQueue.add(packet);
+    public void addToPacketMap(Packet packet) {
+        //logger.info("Adding packet to waiting queue: " + packet);
+        packetMap.put(packet.getSequenceNumber(), packet);
         synchronized (lockObject) {
             lockObject.notifyAll(); // Notify all waiting threads
         }
-
-    }
-
-    public Packet removeFromWaitingQueue() {
-        logger.info("Removing packet from waiting queue");
-        try {
-            logger.info("Waiting queue size: " + this.waitingQueue.size());
-            return this.waitingQueue.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     public void addToPacketQueue(Packet packet) {
@@ -296,5 +292,7 @@ public class Replica {
     public Channel getReplicaChannel(String key) {
         return this.replicaChannels.get(key);
     }
-
+    public int getReplicaId() {
+        return replicaId;
+    }
 }

@@ -8,7 +8,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 public class SequencerServerHandler extends ChannelInboundHandlerAdapter {
 
     private Sequencer sequencer;
-    private static final Logger logger = Logger.getLogger(SequencerServerHandler.class.getName()); // Logger for error handling and logging
+    private final Logger logger = Logger.getLogger(SequencerServerHandler.class.getName()); // Logger for error handling and logging
 
 
     public SequencerServerHandler(Sequencer sequencer) {
