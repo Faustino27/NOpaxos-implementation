@@ -17,6 +17,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 public class Client {
 
     private final Logger logger = Logger.getLogger(Client.class.getName());
+    private DataSize dataSize = null;
     private final String hostSequencer;
     private final int portSequencer;
     private final short clientId;
@@ -47,11 +48,15 @@ public class Client {
         try {
             FileInputStream fis = new FileInputStream("config.properties");
             properties.load(fis);
+            dataSize = DataSize.valueOf(properties.getProperty("data.size"));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
+    
+    public DataSize getDataSize() {
+        return dataSize;
+    }
     public short getClientId() {
         return this.clientId;
     }
@@ -72,9 +77,8 @@ public class Client {
             Header header = new Header(this.clientId);
             logger.info("Header's senderId: " + header.getSenderId());
             header.setSequenceNumber(lastSequenceNumber++);
-            logger.info("Header's sequenceNumber: " + lastSequenceNumber);
-
-            sendRequestSequencer(header);
+            Packet packet = new Packet(header, "");
+            sendRequestSequencer(packet);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -93,8 +97,10 @@ public class Client {
         }
     }
 
-    public void sendRequestSequencer(Header header) {
-        Packet packet = new Packet(header, genereateNewMenssage());
+    public void sendRequestSequencer(Packet packet) {
+        // if(clientId == 0) {
+        //     logger.info("Client " + clientId + " is sending the request: " + packet);
+        // }
         if (sequencerChannel != null && sequencerChannel.isActive()) {
             // if(clientId == 0) {
             //     logger.info("Client " + clientId + " is sending the request: " + packet.toString());

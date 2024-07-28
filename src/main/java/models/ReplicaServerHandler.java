@@ -39,15 +39,15 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
                 case 0:
                     logger.info("New client connection: " + packet.getSenderId());
                     replica.addClientConnection(packet.getSenderId(), ctx);
+                    replica.resetProcessados();
                     break;
                 case 1:
 
                     //logger.info("Replica received message from client: " + packet.getSenderId());
                     validateSequence(packet);
-                    totalRequests++;
                     if (System.nanoTime() - startTime >= FIVE_SECONDS) {
                         startTime = System.nanoTime();
-                        writeTotalRequestsToFile();
+                        logger.info("Still Working");
                     }
                     break;
                 case 2:
@@ -66,7 +66,10 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
                     //logger.info("Replica received response from replica: " + packet.getSenderId());
                     alreadySentRequest.set(false);
                     validateSequence(packet);
-                    break;
+                    case 5:
+                    if (replica.getReplicaId() == 1) {
+                        writeTotalRequestsToFile();
+                    }                    break;
                 default:
                     break;
             }
@@ -137,7 +140,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
 
     private void writeTotalRequestsToFile() {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter("total_requests.txt"))) {
-                writer.write(totalRequests + "");
+                writer.write(replica.processados.get() + "");
                 writer.newLine();
                 logger.info(
                         "Writing total requests made to replica" + replica.getReplicaId()

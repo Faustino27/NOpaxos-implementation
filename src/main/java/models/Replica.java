@@ -12,6 +12,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,11 +51,12 @@ public class Replica {
     private int maxRecentPackets = 10000;
     private Properties properties;
     private final Object lockObject = new Object(); // This lock object is shared across threads
+    AtomicInteger processados = new AtomicInteger(0);
 
     private final ConcurrentSkipListMap<Integer, Packet> packetMap = new ConcurrentSkipListMap<>();
     public Replica(int myPort) {
         this.myPort = myPort;
-        replicaId= 9000-myPort;
+        replicaId = myPort - 9000;
 
         properties = new Properties();
         try {
@@ -94,7 +96,7 @@ public class Replica {
     public void connectToReplicas() {
         // first replica starts at port 9001
         for (int port = 9001; port < this.myPort; port++) {
-            logger.info("Connecting to replica on port: " + port);
+            //logger.info("Connecting to replica on port: " + port);
             final int targetPort = port;
             int replicaNumber = port - 9000;
             String ip = properties.getProperty("replica" + replicaNumber + ".ip");
@@ -204,10 +206,11 @@ public class Replica {
     }
 
     private void processPacket(Packet packet) {
+        processados.incrementAndGet();
         Short clientKey = packet.getSenderId();
         ChannelHandlerContext clientCtx = getClientConnection(clientKey);
         Packet responsePacket = new Packet(packet.getHeader(),
-                "Response to client " + packet.getSenderId() + ": replica " + this.myPort + " received your message.");
+                packet.getData());
         //logger.info("Preparing to send response to client: " + packet.getHeader().getSenderId());
         if (clientCtx != null && clientCtx.channel().isActive()) {
             clientCtx.writeAndFlush(responsePacket).addListener(future -> {
@@ -294,5 +297,9 @@ public class Replica {
     }
     public int getReplicaId() {
         return replicaId;
+    }
+
+    public void resetProcessados() {
+        processados.set(0);
     }
 }

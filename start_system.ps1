@@ -30,7 +30,7 @@ Start-Sleep -Seconds 2
 
 # Start a single client
 Write-Host "Starting a single client..."
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "java -cp target/paxos-implementation-0.1.0-SNAPSHOT.jar models.ClientThread 1 localhost"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "java -cp target/paxos-implementation-0.1.0-SNAPSHOT.jar models.ClientThread 10 localhost"
 
 # Display running jobs
 Get-Job | Receive-Job -Wait -AutoRemoveJob

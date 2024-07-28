@@ -46,4 +46,12 @@ public class Packet implements Serializable{
                 '}';
     }
 
+    public void setDataSize(DataSize dataSize) {
+        if (dataSize.getSize() == 0) {
+            this.data = "";
+        } else {
+            this.data = String.format("%-" + dataSize.getSize() + "s", "").replace(' ', 'X');
+        }
+    }
+
 }
