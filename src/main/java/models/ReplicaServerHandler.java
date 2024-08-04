@@ -18,7 +18,6 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
 
     private final Logger logger = Logger.getLogger(Sequencer.class.getName());
     Replica replica;
-    PublicKeyImporter publicKeyImporter = new PublicKeyImporter();
     AtomicBoolean alreadySentRequest = new AtomicBoolean(false);
     Long startTime = System.nanoTime();
     long totalRequests = 0;
@@ -79,12 +78,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     private void validateSequence(Packet packet) {
         int receivedSeqNum = packet.getSequenceNumber();
         int lastSeqNum = replica.getLastSequenceNumber();
-        boolean validSignature = publicKeyImporter.verifySignature(packet.getData() + packet.getSequenceNumber(),
-                packet.getHeader().getSignature());
-        if (!validSignature) {
-            logger.warning("Invalid signature. Dropping packet.");
-            return;
-        }
+
         if (receivedSeqNum == lastSeqNum) {
             //logger.info("Received expected packet: " + receivedSeqNum);
             replica.updateLastSequenceNumber(receivedSeqNum + 1);

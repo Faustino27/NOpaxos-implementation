@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import io.netty.bootstrap.Bootstrap;
@@ -20,7 +21,7 @@ public class Sequencer {
     private Map<String, Channel> replicaChannels = new HashMap<>();
     private Properties properties;
     private final Logger logger = Logger.getLogger(Sequencer.class.getName());
-    private Usig usig = new Usig();
+    private AtomicInteger counter = new AtomicInteger(0);
 
     public Sequencer() {
         properties = new Properties();
@@ -41,18 +42,15 @@ public class Sequencer {
             logger.warning("Received packet's header is null.");
             return;
         }
+        int packetNumber = counter.getAndIncrement();
 
         Header header = packet.getHeader(); // Get the header from the packet
         //String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
-        
-        SignatureCounterPair signedMessage = usig.signMessage(packet.getData());
-        header.setSignature(signedMessage.getSignature());
 
-        header.setSequenceNumber(signedMessage.getCounter());
+        header.setSequenceNumber(packetNumber);
 
         
-        // logger.info(String.format("Processed packet from client %s with sequence number %d",
-        //         header.getSenderId(), counter));
+        //logger.info(String.format("Processed packet from client %s with sequence number %d", header.getSenderId(), packetNumber));
 
         forwardPacketToReplicas(packet);
     }
