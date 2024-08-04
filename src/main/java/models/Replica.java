@@ -209,7 +209,9 @@ public class Replica {
         processados.incrementAndGet();
         Short clientKey = packet.getSenderId();
         ChannelHandlerContext clientCtx = getClientConnection(clientKey);
-        Packet responsePacket = new Packet(packet.getHeader(),
+        Header header = new Header((short)replicaId);
+        header.setSequenceNumber(packet.getSequenceNumber());
+        Packet responsePacket = new Packet(header,
                 packet.getData());
         //logger.info("Preparing to send response to client: " + packet.getHeader().getSenderId());
         if (clientCtx != null && clientCtx.channel().isActive()) {

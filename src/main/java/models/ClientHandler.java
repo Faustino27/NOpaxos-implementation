@@ -14,7 +14,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
     private Logger logger = Logger.getLogger(ClientHandler.class.getName());
     private AtomicBoolean processing = new AtomicBoolean(false); // Flag to indicate if a message is being processed
-    int timesSaved = 0;
     Client client;
     long startTime = System.nanoTime();
 

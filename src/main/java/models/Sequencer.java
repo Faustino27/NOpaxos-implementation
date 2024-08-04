@@ -1,8 +1,13 @@
 package models;
 
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -21,6 +26,9 @@ public class Sequencer {
     private Properties properties;
     private final Logger logger = Logger.getLogger(Sequencer.class.getName());
     private Usig usig = new Usig();
+
+    private List<Long> timingResults = new ArrayList<>();
+
 
     public Sequencer() {
         properties = new Properties();
@@ -43,18 +51,23 @@ public class Sequencer {
         }
 
         Header header = packet.getHeader(); // Get the header from the packet
-        //String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
-        
+        // String messageId = header.getSenderId() + ":" + header.getSequenceNumber();
+        long startTime = System.nanoTime();
         SignatureCounterPair signedMessage = usig.signMessage(packet.getData());
-        header.setSignature(signedMessage.getSignature());
+        if(signedMessage.getCounter() <= 10000){
+            timingResults.add(System.nanoTime() - startTime);
+        }
 
+
+        header.setSignature(signedMessage.getSignature());
         header.setSequenceNumber(signedMessage.getCounter());
 
-        
-        // logger.info(String.format("Processed packet from client %s with sequence number %d",
-        //         header.getSenderId(), counter));
+        // logger.info(String.format("Processed packet from client %s with sequence number %d", header.getSenderId(), header.getSequenceNumber()));
 
         forwardPacketToReplicas(packet);
+        if(packet.getHeader().getMessageType() == 5) {
+            writeTimingResultsToFile();
+        }
     }
 
     // Method to handle sequencer failures
@@ -123,6 +136,18 @@ public class Sequencer {
         int port = 8080; // Choose your desired port
         Sequencer sequencer = new Sequencer();
         sequencer.startServer(port);
+    }
+
+    private void writeTimingResultsToFile() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("timing_sing_message.txt"))) {
+            for (int i = 0; i < timingResults.size(); i++) {
+                writer.write((i + 1) + " - " + timingResults.get(i));
+                writer.newLine();
+            }
+            logger.info("Timing results written to timing_results.txt");
+        } catch (IOException e) {
+            logger.severe("Error writing timing results to file: " + e.getMessage());
+        }
     }
 
 }

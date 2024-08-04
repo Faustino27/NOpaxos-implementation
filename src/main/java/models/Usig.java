@@ -86,6 +86,7 @@ public class Usig {
             signature.update(newMessage.getBytes());
             byte[] digitalSignature = signature.sign();
             SignatureCounterPair messageCounterPair = new SignatureCounterPair(Base64.getEncoder().encodeToString(digitalSignature), counter);
+
             return messageCounterPair;
             
         } catch (NoSuchAlgorithmException e) {

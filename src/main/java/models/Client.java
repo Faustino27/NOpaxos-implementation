@@ -98,9 +98,6 @@ public class Client {
     }
 
     public void sendRequestSequencer(Packet packet) {
-        // if(clientId == 0) {
-        //     logger.info("Client " + clientId + " is sending the request: " + packet);
-        // }
         if (sequencerChannel != null && sequencerChannel.isActive()) {
             // if(clientId == 0) {
             //     logger.info("Client " + clientId + " is sending the request: " + packet.toString());
