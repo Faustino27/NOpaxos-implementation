@@ -21,6 +21,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     AtomicBoolean alreadySentRequest = new AtomicBoolean(false);
     Long startTime = System.nanoTime();
     long totalRequests = 0;
+    Long lastTime = System.nanoTime();
     private final long FIVE_SECONDS = 5000000000L;
 
     ReplicaServerHandler(Replica replica) {
@@ -39,13 +40,14 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
                     logger.info("New client connection: " + packet.getSenderId());
                     replica.addClientConnection(packet.getSenderId(), ctx);
                     replica.resetProcessados();
+                    startTime = System.nanoTime();
                     break;
                 case 1:
 
                     //logger.info("Replica received message from client: " + packet.getSenderId());
                     validateSequence(packet);
-                    if (System.nanoTime() - startTime >= FIVE_SECONDS) {
-                        startTime = System.nanoTime();
+                    if (System.nanoTime() - lastTime >= FIVE_SECONDS) {
+                        lastTime = System.nanoTime();
                         logger.info("Still Working");
                     }
                     break;
@@ -84,11 +86,8 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
             replica.updateLastSequenceNumber(receivedSeqNum + 1);
             replica.addToPacketQueue(packet);
         } else if (receivedSeqNum <= lastSeqNum) {
-            // Packet is a duplicate or out of order
         } else {
-            // logger.warning(
-            //      "Gap in the packet sequence. Expected {" + (lastSeqNum) + "}, but received: {" + receivedSeqNum
-            //              + "} \nAdding packet to waiting queue");
+
             replica.addToPacketMap(packet);
             if (!alreadySentRequest.getAndSet(true)) {
                 sendReplicasOrderRequest(lastSeqNum, packet);
@@ -135,6 +134,8 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
     private void writeTotalRequestsToFile() {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter("total_requests.txt"))) {
                 writer.write(replica.processados.get() + "");
+                writer.newLine();
+                writer.write("total time = " + (System.nanoTime() - startTime));
                 writer.newLine();
                 logger.info(
                         "Writing total requests made to replica" + replica.getReplicaId()
