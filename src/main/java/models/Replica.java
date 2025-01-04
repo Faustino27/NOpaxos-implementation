@@ -145,6 +145,22 @@ public class Replica {
         }
     }
 
+    public void broadcastRecivedPacket(Packet recivedPakcet) {
+        Map<String, Channel> replicaChannels = getReplicaChannels();
+        Header header = new Header(recivedPakcet.getSenderId(), (short) 10,recivedPakcet.getHeader());
+        Packet packet= new Packet(header,recivedPakcet.getData());
+        for (Map.Entry<String, Channel> entry : replicaChannels.entrySet()) {
+            Channel replicaChannel = entry.getValue();
+            logger.info("Channel" + replicaChannel +" is active? " +replicaChannel.isActive());
+            if (replicaChannel != null && replicaChannel.isActive()) {
+                //logger.info("Broadcasting packet " + recivedPakcet.getSequenceNumber() +"to replica: " + entry.getKey());
+                replicaChannel.writeAndFlush(Arrays.asList(packet)); // Send the packet to the sequencer
+            } else {
+                //logger.warning("Replica Channel is not active. Cannot broadCast packet.");
+            }
+        }
+    }
+
     public static void main(String[] args) {
         int port = Integer.parseInt(args[0]); // Pass the port number as a command-line argument
         Replica replica = new Replica(port);
@@ -171,6 +187,7 @@ public class Replica {
         }
         return packets;
     }
+
 
     private void processPacketLoop() {
         while (true) {

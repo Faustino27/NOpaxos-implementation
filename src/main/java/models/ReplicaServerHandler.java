@@ -50,10 +50,12 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
 
                     // logger.info("Replica received message from client: " + packet.getSenderId());
                     validateSequence(packet);
+                    replica.broadcastRecivedPacket(packet);
                     if (System.nanoTime() - newTime >= FIVE_SECONDS) {
                         newTime = System.nanoTime();
                         logger.info("Still Working");
                     }
+                    
                     break;
                 case 2:
 
@@ -66,7 +68,7 @@ public class ReplicaServerHandler extends SimpleChannelInboundHandler<List<Packe
                 case 3:
                     // logger.info("Replica received request from replica: " +
                     // packet.getSenderId());
-                    receivedReplicaRequest(packet, ctx);
+                    //receivedReplicaRequest(packet, ctx);
                     break;
                 case 4:
                     // logger.info("Replica received response from replica: " +

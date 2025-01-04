@@ -33,7 +33,7 @@ public class ClientHandler extends SimpleChannelInboundHandler<Packet> {
         }
         processing.set(true);
         
-        if (timingResults.size() == 10000) {
+        if (timingResults.size() >= 10) { // TEN THOUSAND
             //logger.info("10000 requests processed. Stopping client " + client.getClientId());
 
             writeTimingResultsToFile();

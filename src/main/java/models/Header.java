@@ -19,6 +19,14 @@ public class Header implements Serializable {
         this.messageType = messageType;
     }
 
+    public Header(short senderId, short messageType, Header oldHeader) {
+        this.senderId = senderId;
+        this.messageType = messageType;
+        this.signature = oldHeader.getSignature();
+        this.sequenceNumber = oldHeader.getSequenceNumber();
+
+    }
+
     public int getSequenceNumber() {
         return sequenceNumber;
     }
